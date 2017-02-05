@@ -4,8 +4,15 @@
   "description": "play simple games in your browser ",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node babel.app"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "babel-plugin-transform-async-to-generator": "^6.22.0",
+    "babel-register": "^6.22.0",
+    "koa": "^2.0.0-alpha.7",
+    "koa-router": "^7.1.0"
+  }
 }

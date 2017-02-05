@@ -1,0 +1,14 @@
+# generic files to ignore
+# backup files (*~) and vim swap file (.swp), MacOS dir file (.DS_Store)
+*~
+*.lock
+*.DS_Store
+*.swp
+*.out
+
+vars.local.cfg
+node_modules
+npm-debug.log
+
+#except this file
+!.gitignore
