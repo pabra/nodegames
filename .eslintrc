@@ -1,7 +1,7 @@
 {
     "extends": "eslint:recommended",
     "env": {
-        // "browser": true,
+        "browser": true,
         "node": true,
         "es6": true
     },
@@ -17,6 +17,12 @@
         "it": false,
         "expect": false,
         "spyOn": false
+    },
+    "parserOptions": {
+        "sourceType": "module",
+        "ecmaFeatures": {
+            "jsx": true
+        }
     },
     "rules": {
         /**
@@ -68,6 +74,6 @@
         "keyword-spacing": 2,
         "space-before-blocks": 2,
         "space-before-function-paren": [2, {"anonymous": "always", "named": "always"}],
-        "strict": [2, "global"]
+        # "strict": [2, "global"]
     }
 }

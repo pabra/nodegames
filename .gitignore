@@ -9,6 +9,7 @@
 vars.local.cfg
 node_modules
 npm-debug.log
+static
 
 #except this file
 !.gitignore

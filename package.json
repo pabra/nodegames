@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --config webpack.config.js --devtool source-map",
+    "build:prod": "webpack --config webpack.config.js --optimize-minimize",
     "start": "node babel.app"
   },
   "author": "",
@@ -14,5 +16,13 @@
     "babel-register": "^6.22.0",
     "koa": "^2.0.0-alpha.7",
     "koa-router": "^7.1.0"
+  },
+  "devDependencies": {
+    "babel-loader": "^6.3.2",
+    "babel-preset-es2015": "^6.22.0",
+    "babel-preset-react": "^6.23.0",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
+    "webpack": "^2.2.1"
   }
 }
