@@ -5,9 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack --config webpack.config.js --devtool source-map",
-    "build:prod": "webpack --config webpack.config.js --optimize-minimize",
-    "start": "node babel.app"
+    "dev:server-inspect": "node --inspect --debug-brk io.js",
+    "dev:server": "node io.js",
+    "dev:client": "webpack-dev-server",
+    "prod:serve": "NODE_ENV=production webpack-dev-server --env.prod=true",
+    "prod:build": "NODE_ENV=production webpack --env.prod=true",
+    "prod:run": "node babel.app.js"
   },
   "author": "",
   "license": "ISC",
@@ -15,14 +18,23 @@
     "babel-plugin-transform-async-to-generator": "^6.22.0",
     "babel-register": "^6.22.0",
     "koa": "^2.0.0-alpha.7",
-    "koa-router": "^7.1.0"
+    "koa-router": "^7.1.0",
+    "locks": "^0.2.2",
+    "socket.io": "^1.7.3",
+    "socket.io-client": "^1.7.3",
+    "webpack-dev-server": "^2.4.0"
   },
   "devDependencies": {
     "babel-loader": "^6.3.2",
     "babel-preset-es2015": "^6.22.0",
     "babel-preset-react": "^6.23.0",
+    "css-loader": "^0.26.1",
+    "eslint": "^3.16.0",
+    "eslint-plugin-jsx": "0.0.2",
+    "eslint-plugin-react": "^6.10.0",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
+    "style-loader": "^0.13.1",
     "webpack": "^2.2.1"
   }
 }
