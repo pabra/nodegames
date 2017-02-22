@@ -9,10 +9,34 @@ const noop = (() => {});
 
 const rooms = ['lobby'].concat(games);
 
-let allUsers = [];
+const allUsers = [];
 
 function getUsersInRoom(room) {
     return allUsers.filter(user => user.room === room);
+}
+
+function clientJoinRoom(client, user, room, callback=noop) {
+    if (!rooms.includes(room)) {
+        callback({ok: false, message: 'unknown room'});
+        return;
+    }
+
+    if (room === user.room) {
+        callback({ok: false, message: 'already in room'});
+        return;
+    }
+
+    if (user.room) {
+        client.leave(user.room);
+        client.to(user.room).emit('message', `${user.name} left`);
+        client.to(user.room).emit('user:leave', user);
+    }
+    client.join(room);
+    client.to(room).emit('message', `${user.name} joined`);
+    client.to(room).emit('user:join', user);
+    user.room = room;
+    callback({ok: true, user: user, users: getUsersInRoom(room)});
+    console.log(client.id, allUsers);
 }
 
 io.on('connection', client => {
@@ -23,41 +47,40 @@ io.on('connection', client => {
 
     allUsers.push(user);
 
-    console.log(client.id);
+    console.log(client.id, allUsers);
 
-    client.on('send:message', (data, callback) => {
+    client.on('send:message', (data, callback=noop) => {
         console.log('received message inside', data);
-        const cb = callback || noop;
         if (!data.room) {
-            cb({ok: false, message: 'missing room'});
+            callback({ok: false, message: 'missing room'});
             return;
         }
         if (!rooms.includes(data.room)) {
-            cb({ok: false, message: 'unknown room'});
+            callback({ok: false, message: 'unknown room'});
             return;
         }
         if (!data.message) {
-            cb({ok: false, message: 'missing message'});
+            callback({ok: false, message: 'missing message'});
             return;
         }
         client.to(data.room).emit('message', data.message);
         // client.emit('message', 'accepted');
-        cb({ok: true});
+        callback({ok: true});
     });
 
-    client.on('get:usersInRoom', (room, callback) => {
-        callback(getUsersInRoom());
-    });
+    client.on('join', (room, callback) => clientJoinRoom(client, user, room, callback));
 
-    client.join(rooms[0]);
-    user.room = rooms[0];
+    clientJoinRoom(client, user, rooms[0]);
 
     client.on('disconnect', () => {
-        allUsers = allUsers.map(_u => _u !== user);
+        client.to(user.room).emit('message', `${user.name} disconnected`);
+        client.to(user.room).emit('user:leave', user);
+        allUsers.findIndex((item, idx, arr) => arr.splice(idx, 1));
     });
     client.emit('init', {
         user: user,
         rooms: rooms,
+        users: getUsersInRoom(user.room),
     });
     // console.log('joined to lobby', client.id);
     // client.to('lobby').emit('message', 'joined to lobby', 'test');
@@ -81,9 +104,9 @@ io.on('connection', client => {
     // });
 });
 
-setInterval(() => {
-    io.to('lobby').emit('message', new Date());
-}, 25000);
+// setInterval(() => {
+//     io.to('lobby').emit('message', new Date());
+// }, 25000);
 
 
 io.listen(3001);

@@ -123,6 +123,7 @@ module.exports = function(env) {
         devServer: {
             contentBase: './client',
             historyApiFallback: true,
+            host: "0.0.0.0",
             port: 3000,
             compress: isProd,
             inline: !isProd,

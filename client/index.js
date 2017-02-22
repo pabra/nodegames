@@ -7,15 +7,21 @@ import './index.css';
 
 class Chat extends React.Component {
     render() {
-        const users = this.pops && this.pops.users && this.props.users.map(user => {
-            return <li>{user}</li>;
+        const users = this.props && this.props.users && this.props.users.map(user => {
+            return <li key={user.id}>{user.name}</li>;
         });
 
         return (
             <div id='chat'>
+                <div>you: {this.props.user && this.props.user.name || ''}</div>
                 <div className="users"><ul>{users}</ul></div>
                 <div className="messages"></div>
-                <div className="submit"></div>
+                <div className="submit">
+                    <form>
+                        <input />
+                        <button>submit</button>
+                    </form>
+                </div>
             </div>
         );
     }
@@ -24,7 +30,6 @@ class Chat extends React.Component {
 class RoomList extends React.Component {
     onRoomChange(ev, room) {
         ev.preventDefault();
-        console.log(ev);
         this.props.onRoomChange(room);
     }
 
@@ -46,21 +51,34 @@ class App extends React.Component {
         super();
         this.state = {};
 
-        const socket = io.connect('//localhost:3001');
-        socket.on('init', data => {
-            const state = Object.assign({}, this.state, data);
-            console.log('initalized', state);
-            this.setState(state);
+        this.socket = io.connect('//localhost:3001');
+        this.socket.on('init', data => {
+            console.log('initalized', data);
+            this.setState(data);
         });
-        socket.on('message', this.handleMessage);
-        socket.emit('send:message', {room: 'lobby', message:'huhu'}, data => {
+        this.socket.on('message', this.handleMessage);
+        this.socket.on('user:join', user => {
+            const users = this.state.users;
+            users.push(user);
+            this.setState({users: users});
+            console.log('state', this.state);
+        });
+        this.socket.on('user:leave', user => {
+            const users = this.state.users;
+            const newUsers = users.filter(_user => _user.id !== user.id);
+            this.setState({users: newUsers});
+            console.log('state', this.state);
+        });
+
+        this.socket.emit('send:message', {room: 'lobby', message:'huhu'}, data => {
             if (data.ok) {
-                console.log('message acceopted');
+                console.log('message accepted');
             }
         });
 
         window.oooDebug = {};
-        window.oooDebug.socket = socket;
+        window.oooDebug.socket = this.socket;
+        window.oooDebug.state = this.state;
     }
 
     handleMessage(msg) {
@@ -68,15 +86,20 @@ class App extends React.Component {
     }
 
     handleRoomChange(room) {
-        console.log('change to room:', room);
+        this.socket.emit('join', room, data => {
+            if (data.ok) {
+                console.log('changed to room:', room, data);
+                this.setState({user: data.user, users: data.users});
+            }
+        });
     }
 
     render() {
         return (
             <div>
                 <h1>Hello, world!</h1>
-                <RoomList rooms={this.state.rooms} onRoomChange={this.handleRoomChange} />
-                <Chat />
+                <RoomList rooms={this.state.rooms} onRoomChange={room => this.handleRoomChange(room)} />
+                <Chat user={this.state.user} users={this.state.users} />
             </div>
         );
     }
