@@ -55,11 +55,17 @@ module.exports = function(env) {
         context: sourcePath,
         entry: {
             js: './index.js',
-            vendor: ['react'],
+            vendor: ['react', 'react-dom', 'socket.io-client'],
         },
         output: {
+            // https://webpack.js.org/guides/code-splitting/
+            // https://webpack.js.org/guides/caching/
             path: staticsPath,
+            // filename: '[name].[chunkhash].js',
             filename: '[name].js',
+        },
+        resolve: {
+            extensions: ['.js', '.jsx'],
         },
         module: {
             rules: [
@@ -90,6 +96,9 @@ module.exports = function(env) {
                             presets: [
                                 ['es2015', { 'modules': false }],
                                 'react',
+                            ],
+                            plugins: [
+                                'dynamic-import-webpack',
                             ],
                             cacheDirectory: '/tmp',
                         },
@@ -123,7 +132,7 @@ module.exports = function(env) {
         devServer: {
             contentBase: './client',
             historyApiFallback: true,
-            host: "0.0.0.0",
+            // host: '0.0.0.0',
             port: 3000,
             compress: isProd,
             inline: !isProd,
