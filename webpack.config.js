@@ -55,7 +55,7 @@ module.exports = function(env) {
         context: sourcePath,
         entry: {
             js: './index.js',
-            vendor: ['react', 'react-dom', 'socket.io-client'],
+            vendor: ['react', 'react-dom', 'socket.io-client', 'js-logger'],
         },
         output: {
             // https://webpack.js.org/guides/code-splitting/

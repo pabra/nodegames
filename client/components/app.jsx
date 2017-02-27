@@ -1,6 +1,7 @@
 import React from 'react';
 import io from 'socket.io-client';
 
+import {Logger, setSocket as setLoggerSocket} from '../lib/logger';
 import Game from './game';
 import Chat from './chat';
 import RoomList from './room_list';
@@ -9,6 +10,7 @@ import RoomList from './room_list';
 export default class App extends React.Component {
     constructor() {
         super();
+        this.logger = Logger.get('app');
         this.state = {
             messages: [],
             user: {},
@@ -17,6 +19,7 @@ export default class App extends React.Component {
         };
 
         this.socket = io.connect('//localhost:3001');
+        setLoggerSocket(this.socket);
         this.socket.on('init', data => {
             this.setState({
                 user: data.user,
@@ -50,6 +53,8 @@ export default class App extends React.Component {
         window.oooDebug = {};
         window.oooDebug.socket = this.socket;
         window.oooDebug.state = this.state;
+        window.oooDebug.logger = this.logger;
+        window.oooDebug.Logger = Logger;
     }
 
     handleReceiveMessage(msg) {

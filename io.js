@@ -57,6 +57,11 @@ function clientJoinRoom(client, user, room, callback=noop) {
     callback({ok: true, user: user, users: getUsersInRoom(room)});
 }
 
+function ioLogger(data) {
+    console.log('data', data);
+    console.log('arguments', arguments);
+}
+
 io.on('connection', client => {
     logger.debug('client connected', client.id);
     const user = {
@@ -86,6 +91,8 @@ io.on('connection', client => {
     });
 
     client.on('join', (room, callback) => clientJoinRoom(client, user, room, callback));
+
+    client.on('ioLogger', data => ioLogger(Object.assign({}, data, {user})));
 
     clientJoinRoom(client, user, rooms[0]);
 
