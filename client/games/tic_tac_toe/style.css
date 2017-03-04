@@ -1,24 +1,24 @@
-.game * {
+.TicTacToe_game {
     font: 14px "Century Gothic", Futura, sans-serif;
     margin: 20px;
 }
 
-.game ol,
-.game ul {
+.TicTacToe_game ol,
+.TicTacToe_game ul {
     padding-left: 30px;
 }
 
-.game .board-row:after {
+.TicTacToe_game .board-row:after {
     clear: both;
     content: "";
     display: table;
 }
 
-.game .status {
+.TicTacToe_game .status {
     margin-bottom: 10px;
 }
 
-.game .square {
+.TicTacToe_game .square {
     background: #fff;
     border: 1px solid #999;
     float: left;
@@ -33,19 +33,19 @@
     width: 34px;
 }
 
-.game .square:focus {
+.TicTacToe_game .square:focus {
     outline: none;
 }
 
-.game .kbd-navigation .square:focus {
+.TicTacToe_game .kbd-navigation .square:focus {
     background: #ddd;
 }
 
-.game {
+.TicTacToe_game {
     display: flex;
     flex-direction: row;
 }
 
-.game .game-info {
+.TicTacToe_game .game-info {
     margin-left: 20px;
 }

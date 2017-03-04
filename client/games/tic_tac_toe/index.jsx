@@ -103,7 +103,7 @@ export class TicTacToe extends React.Component {
         });
 
         return (
-            <div className="game">
+            <div className="TicTacToe_game">
                 <div>
                     <Board
                         squares={current.squares}
