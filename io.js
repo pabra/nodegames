@@ -1,5 +1,6 @@
 const io = require('socket.io')();
 const logger = require('./lib/logger');
+const locker = require('./lib/locker');
 
 const games = [
     'TicTacToe',
@@ -62,14 +63,20 @@ function ioLogger(data) {
     console.log('arguments', arguments);
 }
 
-io.on('connection', client => {
+io.on('connection', async client => {
     logger.debug('client connected', client.id);
-    const user = {
-        id: client.id,
-        name: getGuestName(),
-    };
+    const user = {id: client.id};
+    try {
+        const lock = await locker(allUsers);
+        user.name = getGuestName();
 
-    allUsers.push(user);
+        allUsers.push(user);
+        lock.unlock();
+    } catch (e) {
+        logger.error('cought lock error', e);
+        // throw e;
+        return;
+    }
 
     client.on('send:message', (data, callback=noop) => {
         logger.debug('received message', client.id, data);
