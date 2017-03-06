@@ -27,7 +27,7 @@ export default class Game extends React.Component {
     }
 
     loadContent(name) {
-        if (name === 'TicTacToe') {
+        if (name === 'tictactoe') {
             // get a Promise of that import
             const _p = import('../games/tic_tac_toe');
             _p.then(ttt => {

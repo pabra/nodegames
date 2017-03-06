@@ -14,18 +14,21 @@ export default class App extends React.Component {
         this.state = {
             messages: [],
             user: {},
-            rooms: [],
+            // rooms: [],
+            games: {},
             users: [],
         };
 
         this.socket = io.connect('//localhost:3001');
         setLoggerSocket(this.socket);
-        this.socket.on('init', data => {
-            this.setState({
-                user: data.user,
-                rooms: data.rooms,
-                users: data.users,
-            });
+        this.socket.on('set', data => {
+            const o = {};
+            if (data.user) o.user = data.user;
+            // if (data.rooms) o.rooms = data.rooms;
+            if (data.games) o.games = data.games;
+            if (data.users) o.users = data.users;
+
+            this.setState(o);
             // this.handleSubmitMessage('huhu func');
         });
         this.socket.on('message', msg => this.handleReceiveMessage(msg));
@@ -65,7 +68,7 @@ export default class App extends React.Component {
     }
 
     handleSubmitMessage(msg) {
-        this.socket.emit('send:message', {room: this.state.user.room, text: msg}, data => {
+        this.socket.emit('send:message', msg, data => {
             if (data.ok) {
                 this.handleReceiveMessage({userName: this.state.user.name, text: msg});
             }
@@ -73,10 +76,18 @@ export default class App extends React.Component {
     }
 
     handleRoomChange(room) {
-        this.socket.emit('join', room, data => {
+        this.socket.emit('join', room, 'lobby', data => {
             if (data.ok) {
                 this.setState({user: data.user, users: data.users});
                 this.handleReceiveMessage({userName: 'system', text: `you joined ${room}`});
+            } else {
+                const err = new Error('room change failed');
+                const d = {
+                    message: err.message,
+                    name: err.name,
+                    stack: err.stack,
+                };
+                this.socket.emit('ioLogger', d);
             }
         });
     }
@@ -95,7 +106,7 @@ export default class App extends React.Component {
                     user={this.state.user}
                     users={this.state.users}
                 />
-                <Game room={this.state.user && this.state.user.room} />
+                <Game room={this.state.user && this.state.user.inRoom} />
             </div>
         );
     }

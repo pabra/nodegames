@@ -84,5 +84,8 @@
         "space-before-blocks": 2,
         # "space-before-function-paren": [2, {"anonymous": "always", "named": "always"}],
         # "strict": [2, "global"]
+
+        # react
+        "react/no-set-state":     0,
     }
 }

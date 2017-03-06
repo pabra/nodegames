@@ -2,16 +2,48 @@ const io = require('socket.io')();
 const logger = require('./lib/logger');
 const locker = require('./lib/locker');
 
-const games = [
-    'TicTacToe',
-    'another',
-];
+// const games = [
+//     'TicTacToe',
+//     'another',
+// ];
 
 const noop = (() => {});
 
-const rooms = ['lobby'].concat(games);
+// const rooms = ['lobby'].concat(games);
 
 const allUsers = [];
+const games = {
+    lobby: {
+        name: 'Lobby',
+        isNoGame: true,
+        description: 'place to meet and search for games',
+        rooms: [],
+    },
+    tictactoe: {
+        name: 'Tic Tac Toe',
+        description: 'simple Tic Tac Toe game',
+        rooms: [],
+    },
+    another: {
+        name: 'game to write',
+        description: 'game that needs to be written',
+        rooms: [],
+    },
+};
+
+const gamesKeys = Object.keys(games);
+const staticGames = {};
+
+for (let gk of gamesKeys) {
+    games.lobby.rooms.push(gk);
+    staticGames[gk] = {};
+    for (let k in games[gk]) {
+        if (!(games[gk].hasOwnProperty(k))) continue;
+        if (k === 'rooms') continue;
+
+        staticGames[gk][k] = games[gk][k];
+    }
+}
 
 function isUserNameAvailable(name) {
     return !allUsers.some(user => {
@@ -33,41 +65,53 @@ function getGuestName() {
 }
 
 function getUsersInRoom(room) {
-    return allUsers.filter(user => user.room === room);
+    return allUsers.filter(user => user.inRoom === room);
 }
 
-function clientJoinRoom(client, user, room, callback=noop) {
-    if (!rooms.includes(room)) {
+function clientJoinRoom(client, user, room, game, callback=noop) {
+    if (!gamesKeys.includes(game)) {
+        callback({ok: false, text: 'unknown game'});
+        return;
+    }
+
+    if (!games[game].rooms.includes(room)) {
         callback({ok: false, text: 'unknown room'});
         return;
     }
 
-    if (room === user.room) {
+    if (room === user.inRoom) {
         callback({ok: false, text: 'already in room'});
         return;
     }
 
-    if (user.room) {
-        client.leave(user.room);
-        client.to(user.room).emit('message', {userName: 'system', text: `${user.name} left`});
-        client.to(user.room).emit('user:leave', user);
+    if (user.inRoom) {
+        client.leave(user.inRoom);
+        client.to(user.inRoom).emit('message', {userName: 'system', text: `${user.name} left`});
+        client.to(user.inRoom).emit('user:leave', user);
     }
+
     client.join(room);
     client.to(room).emit('message', {userName: 'system', text: `${user.name} joined`});
     // io.to(room).emit('message', {userName: 'system', text: `${user.name} joined`});
     client.to(room).emit('user:join', user);
-    user.room = room;
+    user.inGame = game;
+    user.inRoom = room;
     callback({ok: true, user: user, users: getUsersInRoom(room)});
 }
 
 function ioLogger(data) {
     console.log('data', data);
-    console.log('arguments', arguments);
+    logger.debug('data.stack', data.stack);
 }
 
 io.on('connection', async client => {
     logger.debug('client connected', client.id);
-    const user = {id: client.id};
+    const user = {
+        id: client.id,
+        name: null,
+        inGame: null,
+        inRoom: null,
+    };
     try {
         const lock = await locker(allUsers);
         user.name = getGuestName();
@@ -80,34 +124,22 @@ io.on('connection', async client => {
         return;
     }
 
-    client.on('send:message', (data, callback=noop) => {
-        logger.debug('received message', client.id, data);
-        if (!data.room) {
-            callback({ok: false, text: 'missing room'});
-            return;
-        }
-        if (!rooms.includes(data.room)) {
-            callback({ok: false, text: 'unknown room'});
-            return;
-        }
-        if (!data.text) {
-            callback({ok: false, text: 'missing message'});
-            return;
-        }
-        client.to(data.room).emit('message', {userName: user.name, text: data.text});
+    client.on('send:message', (msg, callback=noop) => {
+        logger.debug('received message', client.id, msg);
+        client.to(user.inRoom).emit('message', {userName: user.name, text: msg});
         // client.emit('message', 'accepted');
         callback({ok: true});
     });
 
-    client.on('join', (room, callback) => clientJoinRoom(client, user, room, callback));
+    client.on('join', (room, game, callback) => clientJoinRoom(client, user, room, game, callback));
 
     client.on('ioLogger', data => ioLogger(Object.assign({}, data, {user})));
 
-    clientJoinRoom(client, user, rooms[0]);
+    clientJoinRoom(client, user, 'lobby', 'lobby');
 
     client.on('disconnect', () => {
-        client.to(user.room).emit('message', {userName: 'system', text: `${user.name} disconnected`});
-        client.to(user.room).emit('user:leave', user);
+        client.to(user.inRoom).emit('message', {userName: 'system', text: `${user.name} disconnected`});
+        client.to(user.inRoom).emit('user:leave', user);
         // remove client user from allUsers
         allUsers.find((item, idx, arr) => {
             if (item.id === user.id) {
@@ -117,9 +149,10 @@ io.on('connection', async client => {
         });
     });
 
-    client.emit('init', {
+    client.emit('set', {
         user: user,
-        rooms: rooms,
+        // rooms: games[user.inGame].rooms,
+        games: staticGames,
         users: getUsersInRoom(user.room),
     });
 });
