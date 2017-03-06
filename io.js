@@ -25,7 +25,9 @@ function getGuestName() {
     let testName = prefix;
     for (let i = 1; i <= maxTry; i++) {
         testName = `${prefix}${i}`;
-        if (isUserNameAvailable(testName)) return testName;
+        if (isUserNameAvailable(testName)) {
+            return testName;
+        }
     }
     throw new Error('could not get guest name');
 }
@@ -106,8 +108,15 @@ io.on('connection', async client => {
     client.on('disconnect', () => {
         client.to(user.room).emit('message', {userName: 'system', text: `${user.name} disconnected`});
         client.to(user.room).emit('user:leave', user);
-        allUsers.findIndex((item, idx, arr) => arr.splice(idx, 1));
+        // remove client user from allUsers
+        allUsers.find((item, idx, arr) => {
+            if (item.id === user.id) {
+                return arr.splice(idx, 1);
+            }
+            return false;
+        });
     });
+
     client.emit('init', {
         user: user,
         rooms: rooms,
