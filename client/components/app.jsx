@@ -14,40 +14,19 @@ export default class App extends React.Component {
         this.state = {
             messages: [],
             user: {},
-            // rooms: [],
-            games: {},
+            channels: {},
+            rooms: [],
             users: [],
         };
 
         this.socket = io.connect('//localhost:3001');
         setLoggerSocket(this.socket);
+
         this.socket.on('set', data => {
-            const o = {};
-            if (data.user) o.user = data.user;
-            // if (data.rooms) o.rooms = data.rooms;
-            if (data.games) o.games = data.games;
-            if (data.users) o.users = data.users;
-
-            this.setState(o);
-            // this.handleSubmitMessage('huhu func');
+            this.setKnownState(data);
         });
+
         this.socket.on('message', msg => this.handleReceiveMessage(msg));
-        this.socket.on('user:join', user => {
-            const users = this.state.users;
-            users.push(user);
-            this.setState({users});
-        });
-        this.socket.on('user:leave', user => {
-            const users = this.state.users;
-            const newUsers = users.filter(_user => _user.id !== user.id);
-            this.setState({users: newUsers});
-        });
-
-        // this.socket.emit('send:message', {room: 'lobby', message:'huhu'}, data => {
-        //     if (data.ok) {
-        //         console.log('message accepted');
-        //     }
-        // });
 
         this.handleReceiveMessage = this.handleReceiveMessage.bind(this);
         this.handleRoomChange = this.handleRoomChange.bind(this);
@@ -58,6 +37,17 @@ export default class App extends React.Component {
         window.oooDebug.state = this.state;
         window.oooDebug.logger = this.logger;
         window.oooDebug.Logger = Logger;
+    }
+
+    setKnownState(data) {
+        this.logger.debug('setKnownState', data);
+        const o = {};
+        if (data.user) o.user = data.user;
+        if (data.rooms) o.rooms = data.rooms;
+        if (data.channels) o.channels = data.channels;
+        if (data.users) o.users = data.users;
+
+        this.setState(o);
     }
 
     handleReceiveMessage(msg) {
@@ -76,13 +66,16 @@ export default class App extends React.Component {
     }
 
     handleRoomChange(room) {
+        if (this.state.user.inRoom === room) return;
+
         this.socket.emit('join', room, 'lobby', data => {
             if (data.ok) {
-                this.setState({user: data.user, users: data.users});
+                this.setKnownState(data);
                 this.handleReceiveMessage({userName: 'system', text: `you joined ${room}`});
             } else {
                 const err = new Error('room change failed');
                 const d = {
+                    text: data.text,
                     message: err.message,
                     name: err.name,
                     stack: err.stack,

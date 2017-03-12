@@ -2,17 +2,9 @@ const io = require('socket.io')();
 const logger = require('./lib/logger');
 const locker = require('./lib/locker');
 
-// const games = [
-//     'TicTacToe',
-//     'another',
-// ];
-
 const noop = (() => {});
-
-// const rooms = ['lobby'].concat(games);
-
 const allUsers = [];
-const games = {
+const channels = {
     lobby: {
         name: 'Lobby',
         isNoGame: true,
@@ -31,33 +23,51 @@ const games = {
     },
 };
 
-const gamesKeys = Object.keys(games);
-const staticGames = {};
+const channelKeys = Object.keys(channels);
+const staticChannels = {};
 
-for (let gk of gamesKeys) {
-    games.lobby.rooms.push(gk);
-    staticGames[gk] = {};
-    for (let k in games[gk]) {
-        if (!(games[gk].hasOwnProperty(k))) continue;
+// make a static copy of channels suitable for clients (no rooms)
+for (let gk of channelKeys) {
+    channels.lobby.rooms.push(gk);
+    staticChannels[gk] = {};
+    for (let k in channels[gk]) {
+        if (!(channels[gk].hasOwnProperty(k))) continue;
         if (k === 'rooms') continue;
 
-        staticGames[gk][k] = games[gk][k];
+        staticChannels[gk][k] = channels[gk][k];
     }
 }
 
-function isUserNameAvailable(name) {
+
+/**
+ * __isUserNameAvailable - check if given name is currently not used
+ *
+ * do not call directly - global allUsers should be locked
+ *
+ * @param  {string} name    name to check
+ * @return {bool}           given name is availabel
+ */
+function __isUserNameAvailable(name) {
     return !allUsers.some(user => {
         return user.name === name;
     });
 }
 
-function getGuestName() {
+
+/**
+ * __getGuestName - generate a name for a new user
+ *
+ * do not call directly - global allUsers should be locked
+ *
+ * @return {string} available user name
+ */
+function __getGuestName() {
     const prefix = 'Guest';
     const maxTry = 100;
     let testName = prefix;
     for (let i = 1; i <= maxTry; i++) {
         testName = `${prefix}${i}`;
-        if (isUserNameAvailable(testName)) {
+        if (__isUserNameAvailable(testName)) {
             return testName;
         }
     }
@@ -68,13 +78,23 @@ function getUsersInRoom(room) {
     return allUsers.filter(user => user.inRoom === room);
 }
 
-function clientJoinRoom(client, user, room, game, callback=noop) {
-    if (!gamesKeys.includes(game)) {
-        callback({ok: false, text: 'unknown game'});
+function clientLeaveRoom(client, user) {
+    const room = user.inRoom;
+    if (!room) return;
+
+    client.leave(room);
+    user.inRoom = null;
+    client.to(room).emit('set', {users: getUsersInRoom(room)});
+    client.to(room).emit('message', {userName: 'system', text: `${user.name} left`});
+}
+
+function clientJoinRoom(client, user, room, channel, callback=noop) {
+    if (!channelKeys.includes(channel)) {
+        callback({ok: false, text: 'unknown channel'});
         return;
     }
 
-    if (!games[game].rooms.includes(room)) {
+    if (!channels[channel].rooms.includes(room)) {
         callback({ok: false, text: 'unknown room'});
         return;
     }
@@ -84,21 +104,31 @@ function clientJoinRoom(client, user, room, game, callback=noop) {
         return;
     }
 
-    if (user.inRoom) {
-        client.leave(user.inRoom);
-        client.to(user.inRoom).emit('message', {userName: 'system', text: `${user.name} left`});
-        client.to(user.inRoom).emit('user:leave', user);
-    }
+    clientLeaveRoom(client, user);
 
     client.join(room);
-    client.to(room).emit('message', {userName: 'system', text: `${user.name} joined`});
-    // io.to(room).emit('message', {userName: 'system', text: `${user.name} joined`});
-    client.to(room).emit('user:join', user);
-    user.inGame = game;
+    user.inChannel = channel;
     user.inRoom = room;
-    callback({ok: true, user: user, users: getUsersInRoom(room)});
+    const usersInRoom = getUsersInRoom(room);
+    client.to(room).emit('message', {userName: 'system', text: `${user.name} joined`});
+    client.to(room).emit('set', {users: usersInRoom});
+
+    callback({
+        ok: true,
+        user: user,
+        rooms: channels[channel].rooms,
+        users: usersInRoom,
+    });
 }
 
+
+/**
+ * ioLogger - log errors from clients
+ *
+ * TODO: all
+ *
+ * @param  {object} data
+ */
 function ioLogger(data) {
     console.log('data', data);
     logger.debug('data.stack', data.stack);
@@ -109,12 +139,12 @@ io.on('connection', async client => {
     const user = {
         id: client.id,
         name: null,
-        inGame: null,
+        inChannel: null,
         inRoom: null,
     };
     try {
         const lock = await locker(allUsers);
-        user.name = getGuestName();
+        user.name = __getGuestName();
 
         allUsers.push(user);
         lock.unlock();
@@ -131,15 +161,19 @@ io.on('connection', async client => {
         callback({ok: true});
     });
 
-    client.on('join', (room, game, callback) => clientJoinRoom(client, user, room, game, callback));
+    client.on('join', (room, channel, callback) => clientJoinRoom(client, user, room, channel, callback));
 
     client.on('ioLogger', data => ioLogger(Object.assign({}, data, {user})));
 
-    clientJoinRoom(client, user, 'lobby', 'lobby');
+    clientJoinRoom(client, user, 'lobby', 'lobby', data => {
+        if (!data.ok) return;
+        data.channels = staticChannels;
+        client.emit('set', data);
+    });
 
     client.on('disconnect', () => {
-        client.to(user.inRoom).emit('message', {userName: 'system', text: `${user.name} disconnected`});
-        client.to(user.inRoom).emit('user:leave', user);
+        clientLeaveRoom(client, user);
+
         // remove client user from allUsers
         allUsers.find((item, idx, arr) => {
             if (item.id === user.id) {
@@ -147,13 +181,6 @@ io.on('connection', async client => {
             }
             return false;
         });
-    });
-
-    client.emit('set', {
-        user: user,
-        // rooms: games[user.inGame].rooms,
-        games: staticGames,
-        users: getUsersInRoom(user.room),
     });
 });
 
