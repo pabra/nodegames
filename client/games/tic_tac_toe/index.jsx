@@ -44,7 +44,7 @@ class Board extends React.Component {
     }
 }
 
-export class TicTacToe extends React.Component {
+export default class TicTacToe extends React.Component {
     constructor() {
         super();
         this.state = {

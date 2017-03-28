@@ -5,15 +5,17 @@ import {Logger, setSocket as setLoggerSocket} from '../lib/logger';
 import Game from './game';
 import Chat from './chat';
 import RoomList from './room_list';
+import Breadcrumb from './breadcrumb';
 
+const logger = Logger.get('app');
 
 export default class App extends React.Component {
     constructor() {
         super();
-        this.logger = Logger.get('app');
         this.state = {
             messages: [],
             user: {},
+            channel: null,
             channels: {},
             rooms: [],
             users: [],
@@ -35,19 +37,22 @@ export default class App extends React.Component {
         window.oooDebug = {};
         window.oooDebug.socket = this.socket;
         window.oooDebug.state = this.state;
-        window.oooDebug.logger = this.logger;
+        window.oooDebug.React = React;
+        window.oooDebug.logger = logger;
         window.oooDebug.Logger = Logger;
     }
 
     setKnownState(data) {
-        this.logger.debug('setKnownState', data);
+        logger.debug('setKnownState', data);
         const o = {};
         if (data.user) o.user = data.user;
         if (data.rooms) o.rooms = data.rooms;
+        if (data.channel) o.channel = data.channel;
         if (data.channels) o.channels = data.channels;
         if (data.users) o.users = data.users;
 
         this.setState(o);
+        logger.debug('new state', this.state);
     }
 
     handleReceiveMessage(msg) {
@@ -65,10 +70,10 @@ export default class App extends React.Component {
         });
     }
 
-    handleRoomChange(room) {
+    handleRoomChange(room, channel) {
         if (this.state.user.inRoom === room) return;
 
-        this.socket.emit('join', room, 'lobby', data => {
+        this.socket.emit('join', room, channel, data => {
             if (data.ok) {
                 this.setKnownState(data);
                 this.handleReceiveMessage({userName: 'system', text: `you joined ${room}`});
@@ -89,7 +94,13 @@ export default class App extends React.Component {
         return (
             <div>
                 <h1>{'Hello, world!'}</h1>
+                <Breadcrumb
+                    channels={this.state.channels}
+                    onRoomChange={this.handleRoomChange}
+                    user={this.state.user}
+                />
                 <RoomList
+                    channel={this.state.channel}
                     onRoomChange={this.handleRoomChange}
                     rooms={this.state.rooms}
                 />
@@ -99,7 +110,11 @@ export default class App extends React.Component {
                     user={this.state.user}
                     users={this.state.users}
                 />
-                <Game room={this.state.user && this.state.user.inRoom} />
+                <Game
+                    channels={this.state.channels}
+                    onRoomChange={this.handleRoomChange}
+                    user={this.state.user}
+                />
             </div>
         );
     }

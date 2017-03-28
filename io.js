@@ -7,7 +7,7 @@ const allUsers = [];
 const channels = {
     lobby: {
         name: 'Lobby',
-        isNoGame: true,
+        isLobby: true,
         description: 'place to meet and search for games',
         rooms: [],
     },
@@ -84,24 +84,54 @@ function clientLeaveRoom(client, user) {
 
     client.leave(room);
     user.inRoom = null;
-    client.to(room).emit('set', {users: getUsersInRoom(room)});
-    client.to(room).emit('message', {userName: 'system', text: `${user.name} left`});
+    const usersInRoom = getUsersInRoom(room);
+    if (!channels[user.inChannel].isLobby && usersInRoom.length === 0) {
+        // remove room from room list of channel
+        channels[user.inChannel].rooms.filter((item, idx, arr) => {
+            if (item === room) {
+                return arr.splice(idx, 1);
+            }
+            return false;
+        });
+        client.to(user.inChannel).emit('set', {rooms: channels[user.inChannel].rooms});
+    } else {
+        client.to(room).emit('set', {users: usersInRoom});
+        client.to(room).emit('message', {userName: 'system', text: `${user.name} left`});
+    }
 }
 
 function clientJoinRoom(client, user, room, channel, callback=noop) {
     if (!channelKeys.includes(channel)) {
-        callback({ok: false, text: 'unknown channel'});
+        callback({ok: false, text: `unknown channel: "${channel}"`});
         return;
     }
 
-    if (!channels[channel].rooms.includes(room)) {
-        callback({ok: false, text: 'unknown room'});
+    if (room === null) {
+        if (channels[channel].isLobby) {
+            callback({ok: false, text: `cannot create new room in lobby channel: "${channel}"`});
+            return;
+        }
+    } else if (!channels[channel].rooms.includes(room)) {
+        callback({ok: false, text: `unknown room: "${room}"`});
+        return;
+    }
+
+    if (channels[channel].isLobby && !channelKeys.includes(room)) {
+        callback({ok: false, text: `room "${room}" in channel "${channel}" has no own channel`});
         return;
     }
 
     if (room === user.inRoom) {
         callback({ok: false, text: 'already in room'});
         return;
+    }
+
+    if (room === null) {
+        const now = new Date().getTime();
+        room = `${channel}:${user.id}:${now}`;
+        channels[channel].rooms.push(room);
+        logger.debug('creating new room', room, 'in channel', channel);
+        client.to(channel).emit('set', {rooms: channels[channel].rooms});
     }
 
     clientLeaveRoom(client, user);
@@ -113,10 +143,22 @@ function clientJoinRoom(client, user, room, channel, callback=noop) {
     client.to(room).emit('message', {userName: 'system', text: `${user.name} joined`});
     client.to(room).emit('set', {users: usersInRoom});
 
+    let showChannel;
+    let showRooms;
+
+    if (channels[channel].isLobby) {
+        showChannel = room;
+        showRooms = channels[room].rooms;
+    } else {
+        showChannel = channel;
+        showRooms = channels[channel].rooms;
+    }
+
     callback({
         ok: true,
         user: user,
-        rooms: channels[channel].rooms,
+        channel: showChannel,
+        rooms: showRooms,
         users: usersInRoom,
     });
 }

@@ -1,4 +1,41 @@
 import React from 'react';
+import {userType} from './types';
+import './chat.css';
+
+
+class Messages extends React.Component {
+    constructor() {
+        super();
+        this._setEl = this._setEl.bind(this);
+    }
+
+    componentDidUpdate() {
+        this.el.scrollTop = this.el.scrollHeight;
+    }
+
+    _setEl(el) {
+        this.el = el;
+    }
+
+    render() {
+        const messages = this.props.messages.map(message => {
+            return <div key={message.id}><span>{message.userName}</span>{': '}<span>{message.text}</span></div>;
+        });
+
+        return (
+            <div
+                className="messages"
+                ref={this._setEl}
+            >
+                {messages}
+            </div>
+        );
+    }
+}
+
+Messages.propTypes = {
+    messages: React.PropTypes.arrayOf(React.PropTypes.object).isRequired,
+};
 
 export default class Chat extends React.Component {
     constructor(props) {
@@ -6,7 +43,7 @@ export default class Chat extends React.Component {
         this.state = {message: ''};
         this.handleChange = this.handleChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
-        this._setChatInput = this._setChatInput.bind(this);
+        this._setChatInputEl = this._setChatInputEl.bind(this);
     }
 
     handleChange(ev) {
@@ -15,14 +52,16 @@ export default class Chat extends React.Component {
 
     handleSubmit(ev) {
         ev.preventDefault();
-        this.props.onSubmitMessage(this.state.message);
+        this.props.onSubmitMessage(this.state.message, () => {
+            window.console.log('callback', this.chatMessagesEl);
+            this.chatMessagesEl.scrollTop = this.chatMessagesEl.scrollHeight;
+        });
         this.setState({message: ''});
-        this.chatInput.focus();
+        this.chatInputEl.focus();
     }
 
-    _setChatInput(el) {
-        window.console.log('el', el);
-        this.chatInput = el;
+    _setChatInputEl(el) {
+        this.chatInputEl = el;
     }
 
     render() {
@@ -30,20 +69,16 @@ export default class Chat extends React.Component {
             return <li key={user.id}>{user.name}</li>;
         });
 
-        const messages = this.props.messages.map(message => {
-            return <div key={message.id}><span>{message.userName}</span>{': '}<span>{message.text}</span></div>;
-        });
-
         return (
-            <div id='chat'>
+            <div className='component chat'>
                 <div>{'you: '}{this.props.user && this.props.user.name || ''}</div>
                 <div className="users">{'users:'}<ul>{users}</ul></div>
-                <div className="messages">{messages}</div>
+                <Messages messages={this.props.messages} />
                 <div className="submit">
                     <form onSubmit={this.handleSubmit}>
                         <input
                             onChange={this.handleChange}
-                            ref={this._setChatInput}
+                            ref={this._setChatInputEl}
                             type='text'
                             value={this.state.message}
                         />
@@ -54,11 +89,6 @@ export default class Chat extends React.Component {
         );
     }
 }
-
-const userType = React.PropTypes.shape({
-    name: React.PropTypes.string,
-    id: React.PropTypes.string,
-});
 
 Chat.propTypes = {
     messages: React.PropTypes.arrayOf(React.PropTypes.object).isRequired,
