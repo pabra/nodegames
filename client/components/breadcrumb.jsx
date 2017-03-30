@@ -18,8 +18,8 @@ export default class Breadcrumb extends React.PureComponent {
         crumbs.push(
             <Room
                 channel='lobby'
-                label='Room: '
                 key='lobby'
+                label='Room: '
                 name='lobby'
                 onRoomChange={onRoomChange}
             />
